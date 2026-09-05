@@ -36,8 +36,87 @@ Currently tested on macOS. Linux support is planned.
 
 ## Quick Start
 
+```bash
+git clone https://github.com/YannGhistelinck/ansible-k8s-provisioning.git
+cd ansible-k8s-provisioning
+
+# (Optional) Edit cluster settings
+vi vars/cluster-config.yml
+
+# Create the cluster
+./run-cluster.sh
+
+# Verify
+multipass shell test-cplane
+kubectl get nodes
+```
+
 ## Configuration
 
+All cluster settings are defined in `vars/cluster-config.yml`:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `cluster_name` | Prefix used for VM naming | `test` |
+| `worker_count` | Number of worker nodes to create | `2` |
+| `control_plane.cpus` | vCPUs allocated to the control plane | `2` |
+| `control_plane.memory` | RAM allocated to the control plane | `2G` |
+| `control_plane.disk` | Disk size for the control plane | `20G` |
+| `worker.cpus` | vCPUs allocated to each worker | `1` |
+| `worker.memory` | RAM allocated to each worker | `1.5G` |
+| `worker.disk` | Disk size for each worker | `15G` |
+| `ubuntu_version` | Ubuntu image used by Multipass | `22.04` |
+| `network_interface` | Host network interface for VM bridging | `en0` |
+| `pod_network_cidr` | Internal IP range for pods (Flannel) | `10.244.0.0/16` |
+| `kubernetes_version` | Kubernetes version to install | `1.31` |
+| `flannel_version` | Flannel CNI version | `v0.26.1` |
+| `ingress_nginx_version` | Ingress NGINX controller version | `v1.9.4` |
+| `local_path_provisioner_version` | Rancher local-path-provisioner version | `v0.0.26` |
+
 ## Usage
+
+### Create a cluster
+
+Provisions the control plane and worker VMs, installs Kubernetes, and configures the cluster.
+
+```bash
+./run-cluster.sh
+```
+
+Or directly with Ansible:
+
+```bash
+ansible-playbook create-cluster.yml
+```
+
+### Add a worker node
+
+Adds a new worker to an existing cluster. The new worker automatically gets the next available number.
+
+```bash
+./run-add-worker.sh -c <cluster_name>
+
+# Example
+./run-add-worker.sh -c test
+```
+
+### Remove a worker node
+
+Removes the worker with the highest index. The node is gracefully drained before deletion.
+
+```bash
+./run-remove-worker.sh -c <cluster_name>
+
+# Example
+./run-remove-worker.sh -c test
+```
+
+### Destroy the cluster
+
+Deletes all VMs and cleans up the inventory file. Prompts for confirmation before proceeding.
+
+```bash
+./cleanup-cluster.sh
+```
 
 ## Project Structure
