@@ -9,6 +9,30 @@
     - vars/cluster-config.yml
   tasks:
 
+    # --- OS detection and pre-checks ---
+
+    - name: Detect host operating system
+      command: uname -s
+      register: host_os
+      changed_when: false
+
+    - name: Check that network interface is a bridge (Linux only)
+      stat:
+        path: /sys/class/net/{{ network_interface }}/bridge
+      register: bridge_check
+      when: host_os.stdout == 'Linux'
+
+    - name: Fail if network interface is not a bridge on Linux
+      fail:
+        msg: >
+          The network_interface '{{ network_interface }}' is not a bridge interface.
+          On Linux, Multipass requires a pre-existing bridge to attach VMs to the
+          local network. Please create one and update network_interface in
+          vars/cluster-config.yml. Example:
+          sudo ip link add name br0 type bridge &&
+          sudo ip link set br0 up
+      when: host_os.stdout == 'Linux' and not bridge_check.stat.exists
+
     # --- Discover existing workers ---
 
     - name: Get list of existing VMs
