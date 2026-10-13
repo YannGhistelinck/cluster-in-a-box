@@ -40,7 +40,8 @@ Currently tested on macOS. Linux support is planned.
 git clone https://github.com/YannGhistelinck/ansible-k8s-provisioning.git
 cd ansible-k8s-provisioning
 
-# (Optional) Edit cluster settings
+# Copy and edit cluster settings
+cp vars/cluster-config.yml.example vars/cluster-config.yml
 vi vars/cluster-config.yml
 
 # Create the cluster

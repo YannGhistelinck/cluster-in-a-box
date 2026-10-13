@@ -6,6 +6,7 @@ _legacy/
 vault_password_file
 *.vault_pass
 inventory/*.auto
+vars/cluster-config.yml
 
 # SSH keys and secrets
 *.pem
