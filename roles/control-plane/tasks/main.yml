@@ -77,30 +77,10 @@
 
 # --- Helm ---
 
-- name: Add Helm APT signing key
-  shell: >
-    curl -fsSL https://baltocdn.com/helm/signing.asc
-    | gpg --dearmor -o /usr/share/keyrings/helm-apt-keyring.gpg
+- name: Install Helm via official script
+  shell: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
   args:
-    creates: /usr/share/keyrings/helm-apt-keyring.gpg
-  become: yes
-
-- name: Add Helm APT repository
-  apt_repository:
-    repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/helm-apt-keyring.gpg] https://baltocdn.com/helm/stable/debian/ all main"
-    filename: helm-stable-debian
-    state: present
-  become: yes
-
-- name: Update apt cache after adding Helm repository
-  apt:
-    update_cache: yes
-  become: yes
-
-- name: Install Helm
-  apt:
-    name: helm
-    state: present
+    creates: /usr/local/bin/helm
   become: yes
 
 # --- Traefik ingress controller ---
