@@ -70,7 +70,7 @@ All cluster settings are defined in `vars/cluster-config.yml`:
 | `pod_network_cidr` | Internal IP range for pods (Flannel) | `10.244.0.0/16` |
 | `kubernetes_version` | Kubernetes version to install | `1.31` |
 | `flannel_version` | Flannel CNI version | `v0.26.1` |
-| `ingress_nginx_version` | Ingress NGINX controller version | `v1.9.4` |
+| `traefik_chart_version` | Traefik ingress controller Helm chart version | `41.7.1` |
 | `local_path_provisioner_version` | Rancher local-path-provisioner version | `v0.0.26` |
 
 ## Usage

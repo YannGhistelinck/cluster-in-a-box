@@ -25,5 +25,5 @@ pod_network_cidr: "10.244.0.0/16"
 # Kubernetes settings
 kubernetes_version: "1.31"
 flannel_version: "v0.26.1"
-ingress_nginx_version: "v1.9.4"
+traefik_chart_version: "41.7.1"
 local_path_provisioner_version: "v0.0.26"

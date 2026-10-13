@@ -75,17 +75,64 @@
     KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
   when: not kubeadm_init_status.stat.exists
 
-- name: Install Ingress NGINX controller
-  command: >
-    kubectl apply -f
-    https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-{{ ingress_nginx_version }}/deploy/static/provider/baremetal/deploy.yaml
+# --- Helm ---
+
+- name: Add Helm APT signing key
+  shell: >
+    curl -fsSL https://baltocdn.com/helm/signing.asc
+    | gpg --dearmor -o /usr/share/keyrings/helm-apt-keyring.gpg
+  args:
+    creates: /usr/share/keyrings/helm-apt-keyring.gpg
+  become: yes
+
+- name: Add Helm APT repository
+  apt_repository:
+    repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/helm-apt-keyring.gpg] https://baltocdn.com/helm/stable/debian/ all main"
+    filename: helm-stable-debian
+    state: present
+  become: yes
+
+- name: Update apt cache after adding Helm repository
+  apt:
+    update_cache: yes
+  become: yes
+
+- name: Install Helm
+  apt:
+    name: helm
+    state: present
+  become: yes
+
+# --- Traefik ingress controller ---
+
+- name: Add Traefik Helm repository
+  command: helm repo add traefik https://traefik.github.io/charts --force-update
   environment:
     KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
   when: not kubeadm_init_status.stat.exists
+  changed_when: false
+
+- name: Update Helm repositories
+  command: helm repo update
+  environment:
+    KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
+  when: not kubeadm_init_status.stat.exists
+  changed_when: false
+
+- name: Install Traefik ingress controller via Helm
+  command: >
+    helm upgrade --install traefik traefik/traefik
+    --namespace traefik
+    --create-namespace
+    --version {{ traefik_chart_version }}
+    --set service.type=NodePort
+  environment:
+    KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
+  when: not kubeadm_init_status.stat.exists
+  register: traefik_result
   retries: 3
   delay: 5
-  register: ingress_result
-  until: ingress_result.rc == 0
+  until: traefik_result.rc == 0
 
 # --- Join command for workers ---
 
