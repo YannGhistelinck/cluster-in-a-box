@@ -5,9 +5,7 @@ from ansible.plugins.connection import ConnectionBase
 from ansible.errors import AnsibleError
 from ansible.module_utils.common.text.converters import to_bytes, to_text
 import subprocess
-import shutil
 import os
-import tempfile
 
 DOCUMENTATION = '''
     connection: multipass
@@ -81,23 +79,26 @@ class Connection(ConnectionBase):
         """Transfer a file to the Multipass instance."""
         super(Connection, self).put_file(in_path, out_path)
 
-        tmp_local = None
         try:
-            # On Linux, the Multipass daemon uses SFTP internally for transfers
-            # and runs as a different user, so it cannot read files from the
-            # Ansible temp directory (~/.ansible/tmp/). Copy to /tmp/ first.
-            fd, tmp_local = tempfile.mkstemp(prefix='ansible-mp-put-', dir='/tmp')
-            os.close(fd)
-            shutil.copy2(in_path, tmp_local)
-            os.chmod(tmp_local, 0o644)
-
-            # multipass transfer cannot write directly to privileged paths,
-            # so we transfer to a temp location then move it into place.
+            # Pipe file content via stdin through multipass exec to avoid
+            # multipass transfer, which on Linux cannot access the Ansible
+            # temp directory due to daemon user restrictions.
             tmp_dest = f"/tmp/ansible-tmp-{os.path.basename(out_path)}"
 
-            subprocess.check_call(
-                ['multipass', 'transfer', tmp_local, f"{self.instance_name}:{tmp_dest}"]
+            with open(in_path, 'rb') as f:
+                content = f.read()
+
+            process = subprocess.Popen(
+                ['multipass', 'exec', self.instance_name, '--',
+                 'sh', '-c', f'cat > {tmp_dest}'],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
+            _, stderr = process.communicate(input=content)
+            if process.returncode != 0:
+                raise subprocess.CalledProcessError(process.returncode, 'multipass exec', stderr=stderr)
+
             subprocess.check_call(
                 ['multipass', 'exec', self.instance_name, '--', 'sudo', 'mv', tmp_dest, out_path]
             )
@@ -107,17 +108,13 @@ class Connection(ConnectionBase):
             )
         except subprocess.CalledProcessError as e:
             raise AnsibleError(f"Failed to transfer file to '{self.instance_name}:{out_path}': {e}")
-        finally:
-            if tmp_local and os.path.exists(tmp_local):
-                os.unlink(tmp_local)
 
     def fetch_file(self, in_path, out_path):
         """Fetch a file from the Multipass instance."""
         super(Connection, self).fetch_file(in_path, out_path)
 
-        tmp_local = None
         try:
-            # For privileged files, copy to a temp location on the VM first.
+            # For privileged files, copy to a readable temp location on the VM first.
             tmp_src = f"/tmp/ansible-fetch-{os.path.basename(in_path)}"
 
             subprocess.check_call(
@@ -129,28 +126,30 @@ class Connection(ConnectionBase):
                  'sudo', 'chmod', '644', tmp_src]
             )
 
-            # On Linux, the Multipass daemon uses SFTP internally and cannot
-            # write to the Ansible temp directory. Transfer to /tmp/ first.
-            fd, tmp_local = tempfile.mkstemp(prefix='ansible-mp-fetch-', dir='/tmp')
-            os.close(fd)
-
-            subprocess.check_call(
-                ['multipass', 'transfer', f"{self.instance_name}:{tmp_src}", tmp_local]
+            # Read file content via stdout through multipass exec to avoid
+            # multipass transfer daemon permission issues on Linux.
+            process = subprocess.Popen(
+                ['multipass', 'exec', self.instance_name, '--', 'cat', tmp_src],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
+            content, stderr = process.communicate()
+            if process.returncode != 0:
+                raise subprocess.CalledProcessError(process.returncode, 'multipass exec', stderr=stderr)
+
             subprocess.check_call(
                 ['multipass', 'exec', self.instance_name, '--',
                  'sudo', 'rm', '-f', tmp_src]
             )
-            shutil.copy2(tmp_local, out_path)
+
+            with open(out_path, 'wb') as f:
+                f.write(content)
         except FileNotFoundError:
             raise AnsibleError(
                 "multipass command not found. Ensure Multipass is installed and available in PATH."
             )
         except subprocess.CalledProcessError as e:
             raise AnsibleError(f"Failed to fetch file from '{self.instance_name}:{in_path}': {e}")
-        finally:
-            if tmp_local and os.path.exists(tmp_local):
-                os.unlink(tmp_local)
 
     def close(self):
         """Close the connection."""
