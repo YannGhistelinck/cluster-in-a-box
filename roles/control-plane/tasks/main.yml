@@ -114,36 +114,6 @@
   delay: 5
   until: traefik_result.rc == 0
 
-# --- ArgoCD ---
-
-- name: Add Argo Helm repository
-  command: helm repo add argo https://argoproj.github.io/argo-helm --force-update
-  environment:
-    KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
-  when: not kubeadm_init_status.stat.exists
-  changed_when: false
-
-- name: Update Helm repositories
-  command: helm repo update
-  environment:
-    KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
-  when: not kubeadm_init_status.stat.exists
-  changed_when: false
-
-- name: Install ArgoCD via Helm
-  command: >
-    helm upgrade --install argocd argo/argo-cd
-    --namespace argocd
-    --create-namespace
-    --version {{ argocd_chart_version }}
-  environment:
-    KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
-  when: not kubeadm_init_status.stat.exists
-  register: argocd_result
-  retries: 3
-  delay: 5
-  until: argocd_result.rc == 0
-
 # --- Join command for workers ---
 
 - name: Generate join command

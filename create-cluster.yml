@@ -153,6 +153,34 @@
 
 # --- Post-configuration ---
 
+- name: Install ArgoCD on control plane
+  hosts: control_plane
+  gather_facts: no
+  vars_files:
+    - vars/cluster-config.yml
+  tasks:
+    - name: Add Argo Helm repository
+      command: helm repo add argo https://argoproj.github.io/argo-helm --force-update
+      environment:
+        KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
+      changed_when: false
+
+    - name: Update Helm repositories
+      command: helm repo update
+      environment:
+        KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
+      changed_when: false
+
+    - name: Install ArgoCD via Helm
+      command: >
+        helm upgrade --install argocd argo/argo-cd
+        --namespace argocd
+        --create-namespace
+        --version {{ argocd_chart_version }}
+        --timeout 10m
+      environment:
+        KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
+
 - name: Label worker nodes
   hosts: control_plane
   gather_facts: no
