@@ -181,6 +181,21 @@
       environment:
         KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
 
+    - name: Get ArgoCD initial admin password
+      command: >
+        kubectl -n argocd get secret argocd-initial-admin-secret
+        -o jsonpath="{.data.password}"
+      environment:
+        KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
+      register: argocd_password_b64
+
+    - name: Display ArgoCD access info
+      debug:
+        msg:
+          - "ArgoCD UI : kubectl port-forward svc/argocd-server -n argocd 8080:443"
+          - "Login     : admin"
+          - "Password  : {{ argocd_password_b64.stdout | b64decode }}"
+
 - name: Label worker nodes
   hosts: control_plane
   gather_facts: no
