@@ -188,6 +188,9 @@
       environment:
         KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
       register: argocd_password_b64
+      retries: 10
+      delay: 15
+      until: argocd_password_b64.rc == 0
 
     - name: Display ArgoCD access info
       debug:
